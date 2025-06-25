@@ -81,7 +81,7 @@ USER 101
 
 
 ############################################# Base image for Alpine #############################################
-FROM ghcr.io/steadybit/nginx-with-echo-module:main AS alpine
+FROM nginx:1.27.5-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10 AS alpine
 ARG PACKAGE_REPO
 
 RUN --mount=type=bind,from=nginx-files,src=nginx_signing.rsa.pub,target=/etc/apk/keys/nginx_signing.rsa.pub \
@@ -95,6 +95,8 @@ RUN --mount=type=bind,from=nginx-files,src=nginx_signing.rsa.pub,target=/etc/apk
 	&& ldconfig /usr/local/lib/ \
 	&& agent.sh \
 	&& sed -i -e '/nginx.org/d' /etc/apk/repositories
+
+RUN apk add --no-cache nginx-mod-http-js
 
 
 ############################################# Base image for Debian #############################################
