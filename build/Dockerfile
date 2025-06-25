@@ -23,7 +23,7 @@ FROM golang:1.24-alpine@sha256:ef18ee7117463ac1055f5a370ed18b8750f01589f13ea0b48
 FROM nginx:1.27.5-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10 AS alpine
 
 RUN printf "%s%s%s\n" "http://nginx.org/packages/mainline/alpine/v" `egrep -o '^[0-9]+\.[0-9]+' /etc/alpine-release` "/main" >> /etc/apk/repositories \
-	&& apk add --no-cache libcap libstdc++ nginx-module-otel \
+	&& apk add --no-cache libcap libstdc++ nginx-module-otel nginx-mod-http-echo \
 	&& sed -i -e '/nginx.org/d' /etc/apk/repositories
 
 
