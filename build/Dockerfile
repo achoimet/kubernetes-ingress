@@ -80,9 +80,40 @@ RUN --mount=type=bind,from=nginx-files,src=patch-os.sh,target=/usr/local/bin/pat
 USER 101
 
 
+############################################# Build NGINX echo module #############################################
+FROM nginx:1.27.5-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10 AS echo-build
+
+# 1) Install build dependencies
+RUN apk add --no-cache \
+      build-base \
+      pcre-dev \
+      zlib-dev \
+      openssl-dev \
+      wget \
+      git
+
+# 2) Download the matching NGINX sources
+RUN wget http://nginx.org/download/nginx-1.27.5.tar.gz && \
+    tar xzf nginx-1.27.5.tar.gz
+
+# 3) Clone the echo module
+RUN git clone https://github.com/openresty/echo-nginx-module.git /echo-nginx-module
+
+# 4) Configure & build just the dynamic module (with ABI compatibility)
+WORKDIR /nginx-1.27.5
+RUN ./configure \
+      --with-compat \
+      --add-dynamic-module=/echo-nginx-module \
+    && make modules
+
 ############################################# Base image for Alpine #############################################
 FROM nginx:1.27.5-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10 AS alpine
 ARG PACKAGE_REPO
+
+# Copy the echo module into the standard modules path
+COPY --from=echo-build \
+     /nginx-1.27.5/objs/ngx_http_echo_module.so \
+     /usr/lib/nginx/modules/
 
 RUN --mount=type=bind,from=nginx-files,src=nginx_signing.rsa.pub,target=/etc/apk/keys/nginx_signing.rsa.pub \
 	--mount=type=bind,from=nginx-files,src=user_agent,target=/tmp/user_agent \
@@ -95,8 +126,6 @@ RUN --mount=type=bind,from=nginx-files,src=nginx_signing.rsa.pub,target=/etc/apk
 	&& ldconfig /usr/local/lib/ \
 	&& agent.sh \
 	&& sed -i -e '/nginx.org/d' /etc/apk/repositories
-
-RUN apk add --no-cache nginx-mod-http-lua nginx-mod-devel-kit
 
 
 ############################################# Base image for Debian #############################################
