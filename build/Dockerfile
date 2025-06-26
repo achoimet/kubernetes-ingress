@@ -96,7 +96,7 @@ RUN --mount=type=bind,from=nginx-files,src=nginx_signing.rsa.pub,target=/etc/apk
 	&& agent.sh \
 	&& sed -i -e '/nginx.org/d' /etc/apk/repositories
 
-RUN apk add --no-cache nginx-mod-http-js
+RUN apk add --no-cache nginx-mod-http-lua
 
 
 ############################################# Base image for Debian #############################################
