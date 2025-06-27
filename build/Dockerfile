@@ -117,7 +117,6 @@ FROM nginx:1.27.5-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54
 ARG PACKAGE_REPO
 
 # Copy the echo module into the standard modules path
-RUN apk add --no-cache luajit
 COPY --from=lua-build \
      /nginx-1.27.5/objs/ngx_http_lua_module.so \
      /usr/lib/nginx/modules/
