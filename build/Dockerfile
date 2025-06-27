@@ -80,8 +80,8 @@ RUN --mount=type=bind,from=nginx-files,src=patch-os.sh,target=/usr/local/bin/pat
 USER 101
 
 
-############################################# Build NGINX echo module #############################################
-FROM nginx:1.27.5-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10 AS echo-build
+############################################# Build NGINX lua module #############################################
+FROM nginx:1.27.5-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10 AS lua-build
 
 # 1) Install build dependencies
 RUN apk add --no-cache \
@@ -92,18 +92,24 @@ RUN apk add --no-cache \
       wget \
       git
 
-# 2) Download the matching NGINX sources
+RUN git clone --depth 1 https://github.com/openresty/luajit2.git /luajit2 && \
+    cd /luajit2 && \
+    make && make install PREFIX=/usr/local && \
+    ln -sf /usr/local/bin/luajit /usr/bin/luajit && \
+    ln -sf /usr/local/include/luajit-2.1 /usr/include/luajit-2.1
+
 RUN wget http://nginx.org/download/nginx-1.27.5.tar.gz && \
     tar xzf nginx-1.27.5.tar.gz
 
-# 3) Clone the echo module
-RUN git clone https://github.com/openresty/echo-nginx-module.git /echo-nginx-module
+RUN git clone https://github.com/openresty/lua-nginx-module.git /lua-nginx-module
 
-# 4) Configure & build just the dynamic module (with ABI compatibility)
 WORKDIR /nginx-1.27.5
-RUN ./configure \
-      --with-compat \
-      --add-dynamic-module=/echo-nginx-module \
+
+RUN  export LUAJIT_LIB=/usr/local/lib && \
+    export LUAJIT_INC=/usr/local/include/luajit-2.1 && \
+     ./configure \
+     --with-compat \
+      --add-dynamic-module=/lua-nginx-module \
     && make modules
 
 ############################################# Base image for Alpine #############################################
@@ -111,8 +117,9 @@ FROM nginx:1.27.5-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54
 ARG PACKAGE_REPO
 
 # Copy the echo module into the standard modules path
-COPY --from=echo-build \
-     /nginx-1.27.5/objs/ngx_http_echo_module.so \
+RUN apk add --no-cache luajit
+COPY --from=lua-build \
+     /nginx-1.27.5/objs/ngx_http_lua_module.so \
      /usr/lib/nginx/modules/
 
 RUN --mount=type=bind,from=nginx-files,src=nginx_signing.rsa.pub,target=/etc/apk/keys/nginx_signing.rsa.pub \
