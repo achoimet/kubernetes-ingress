@@ -55,7 +55,7 @@ COPY --from=lua-build \
      /nginx-1.25.4/objs/ngx_http_lua_module.so \
      /usr/lib/nginx/modules/
 
-RUN echo "/usr/lib" > /etc/ld.so.conf.d/luajit.conf \
+RUN printf "/usr/lib\n/usr/local/lib\n" > /etc/ld.so.conf.d/luajit.conf \
  && ldconfig
 
 RUN --mount=type=bind,from=alpine-opentracing-lib,target=/tmp/ot/ \
