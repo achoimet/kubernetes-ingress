@@ -49,10 +49,14 @@ RUN  export LUAJIT_LIB=/usr/local/lib && \
 ############################################# Base image for Alpine #############################################
 FROM nginx:1.25.4-alpine@sha256:02d8d94023878cedf3e3acc55372932a9ba1478b6e2f3357786d916c2af743ba AS alpine
 
-# Copy the echo module into the standard modules path
+RUN apk add --no-cache luajit
+
 COPY --from=lua-build \
      /nginx-1.25.4/objs/ngx_http_lua_module.so \
      /usr/lib/nginx/modules/
+
+RUN echo "/usr/lib" > /etc/ld.so.conf.d/luajit.conf \
+ && ldconfig
 
 RUN --mount=type=bind,from=alpine-opentracing-lib,target=/tmp/ot/ \
 	apk add --no-cache libcap libstdc++ \
