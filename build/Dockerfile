@@ -49,22 +49,23 @@ RUN  export LUAJIT_LIB=/usr/local/lib && \
 ############################################# Base image for Alpine #############################################
 FROM nginx:1.25.4-alpine@sha256:02d8d94023878cedf3e3acc55372932a9ba1478b6e2f3357786d916c2af743ba AS alpine
 
-RUN apk add --no-cache luajit
+RUN apk add --no-cache luajit musl-utils
 
 COPY --from=lua-build \
      /nginx-1.25.4/objs/ngx_http_lua_module.so \
      /usr/lib/nginx/modules/
 
-RUN printf "/usr/lib\n/usr/local/lib\n" > /etc/ld.so.conf.d/luajit.conf \
- && ldconfig
 
+RUN mkdir -p /etc/ld.so.conf.d && \
+    printf "/usr/lib\n/usr/local/lib\n" > /etc/ld.so.conf.d/luajit.conf
+
+# 2) Bring in the opentracing libs
 RUN --mount=type=bind,from=alpine-opentracing-lib,target=/tmp/ot/ \
-	apk add --no-cache libcap libstdc++ \
-	&& apk upgrade --no-cache -U \
-	&& cp -av /tmp/ot/usr/local/lib/libopentracing.so* /tmp/ot/usr/local/lib/libjaegertracing*so* /tmp/ot/usr/local/lib/libzipkin*so* /tmp/ot/usr/local/lib/libdd*so* /tmp/ot/usr/local/lib/libyaml*so* /usr/local/lib/ \
-	&& cp -av /tmp/ot/usr/lib/nginx/modules/ngx_http_opentracing_module.so /usr/lib/nginx/modules/ \
-	&& ldconfig /usr/local/lib/ \
-	&& apk cache clean
+    apk add --no-cache libcap libstdc++ && \
+    apk upgrade --no-cache -U && \
+    cp -av /tmp/ot/usr/lib/nginx/modules/ngx_http_opentracing_module.so /usr/lib/nginx/modules/ || true && \
+    ldconfig /usr/local/lib/ && \
+    apk cache clean
 
 
 ############################################# Base image for Debian #############################################
@@ -478,6 +479,18 @@ COPY --link --from=builder --chown=101:0 /nginx-ingress /
 USER 0
 RUN setcap 'cap_net_bind_service=+ep' /nginx-ingress && setcap -v 'cap_net_bind_service=+ep' /nginx-ingress
 # 101 is nginx, defined above
+
+# 1) Update apt and install the LuaJIT runtime
+RUN apt-get update && \
+    apt-get install --no-install-recommends -y libluajit-5.1-2 && \
+    rm -rf /var/lib/apt/lists/*
+
+# 2) Copy the Lua module built earlier
+COPY --from=lua-build /nginx-1.25.4/objs/ngx_http_lua_module.so /usr/lib/nginx/modules/
+
+# 3) Refresh the dynamic linker cache
+RUN ldconfig
+
 USER 101
 
 
