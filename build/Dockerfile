@@ -79,39 +79,6 @@ RUN --mount=type=bind,from=nginx-files,src=patch-os.sh,target=/usr/local/bin/pat
 	&& patch-os.sh
 USER 101
 
-
-############################################# Build NGINX lua module #############################################
-FROM nginx:1.27.5-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10 AS lua-build
-
-# 1) Install build dependencies
-RUN apk add --no-cache \
-      build-base \
-      pcre-dev \
-      zlib-dev \
-      openssl-dev \
-      wget \
-      git
-
-RUN git clone --depth 1 https://github.com/openresty/luajit2.git /luajit2 && \
-    cd /luajit2 && \
-    make && make install PREFIX=/usr/local && \
-    ln -sf /usr/local/bin/luajit /usr/bin/luajit && \
-    ln -sf /usr/local/include/luajit-2.1 /usr/include/luajit-2.1
-
-RUN wget http://nginx.org/download/nginx-1.27.5.tar.gz && \
-    tar xzf nginx-1.27.5.tar.gz
-
-RUN git clone https://github.com/openresty/lua-nginx-module.git /lua-nginx-module
-
-WORKDIR /nginx-1.27.5
-
-RUN  export LUAJIT_LIB=/usr/local/lib && \
-    export LUAJIT_INC=/usr/local/include/luajit-2.1 && \
-     ./configure \
-     --with-compat \
-      --add-dynamic-module=/lua-nginx-module \
-    && make modules
-
 ############################################# Build NGINX echo module #############################################
 FROM nginx:1.27.5-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10 AS echo-build
 
